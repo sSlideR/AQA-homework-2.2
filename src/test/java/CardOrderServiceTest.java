@@ -3,17 +3,28 @@ import com.google.gson.internal.bind.util.ISO8601Utils;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.*;
 
-import java.time.LocalDate;
-import java.time.ZoneId;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 
+import static com.codeborne.selenide.Selectors.withText;
 import static com.codeborne.selenide.Selenide.*;
 import static com.codeborne.selenide.Condition.*;
 
 public class CardOrderServiceTest {
 
-    String today = LocalDate.now(ZoneId.ofOffset("UTC", "+0300")).toString();
+
+    public static String getDate(int adj) {
+        Calendar date = Calendar.getInstance();
+        date.add(Calendar.DATE, adj);
+        Date currentDate = date.getTime();
+
+        SimpleDateFormat sdf = new SimpleDateFormat("dd.MM.yyyy");
+        return sdf.format(currentDate);
+    }
+
+
+        String currentDateOffset5Days = getDate(5);
 
     @AfterEach
     void closeBrowser() {
@@ -21,15 +32,29 @@ public class CardOrderServiceTest {
     }
 
     @Test
-    void ShouldSubmitForm() {
+    void ShouldSubmitForm() throws InterruptedException {
         open("http://localhost:9999");
         SelenideElement form = $("form");
+
         form.$("input[placeholder='Город'").setValue("Саранск");
-        form.$("input.input__control[name=phone").setValue("+79210001234");
+
+        form.$("input.input__control[formnovalidate]").click();
+        form.$("input.input__control[formnovalidate]").sendKeys("\b\b\b\b\b\b\b\b");
+        form.$("input.input__control[formnovalidate]").sendKeys(currentDateOffset5Days);
+
+        form.$("input[name='name']").setValue("Степанов Петр");
+
+        form.$("input[name='phone']").setValue("+79991230000");
+
         form.$("span.checkbox__box").click();
-        form.$("button").click();
-        System.out.println($(".Success_successBlock__2L3Cw span").getText());
-        $(".Success_successBlock__2L3Cw p").shouldHave(exactText("Ваша заявка успешно отправлена! Наш менеджер свяжется с вами в ближайшее время."));
+
+        form.$(withText("Забронировать")).click();
+
+        SelenideElement notification = $("div.notification");
+        notification.$(withText("Встреча успешно забронирована на")).waitUntil(visible, 15000);
+        notification.$(withText(currentDateOffset5Days)).waitUntil(visible, 15000);
+
+
     }
 
 }
